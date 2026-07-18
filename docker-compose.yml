@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16.9
+    container_name: pocker-tracker-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: pocker_tracker
+    ports:
+      - "54332:5432"
+    volumes:
+      - pocker_tracker_pgdata:/var/lib/postgresql/data
+
+volumes:
+  pocker_tracker_pgdata:

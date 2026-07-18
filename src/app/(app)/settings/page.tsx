@@ -1,0 +1,141 @@
+import Link from "next/link";
+import { auth, signOut } from "@/auth";
+import { requireUserId } from "@/lib/session-user";
+import { getLevelPresets } from "@/lib/data/sessions";
+import { updatePreset, deletePreset, movePreset } from "@/lib/actions/presets";
+import { Card } from "@/components/ui/card";
+import { AddPresetForm } from "@/components/add-preset-form";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { inputClass } from "@/components/ui/field";
+import { cn } from "@/lib/utils";
+
+export default async function SettingsPage() {
+  const userId = await requireUserId();
+  const presets = await getLevelPresets(userId);
+  const session = await auth();
+  const userLabel = session?.user?.name ?? session?.user?.email ?? "";
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-baseline gap-3">
+        <h1 className="font-display text-xl font-medium">設定</h1>
+        <Link href="/" className="ml-auto text-sm text-accent hover:underline">
+          ← 回總覽
+        </Link>
+      </div>
+
+      <Card className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-col">
+          <span className="text-sm font-semibold text-subtle">帳號</span>
+          {userLabel ? (
+            <span className="truncate text-sm text-muted">{userLabel}</span>
+          ) : null}
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <button
+              type="submit"
+              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-subtle transition hover:bg-chip"
+            >
+              登出
+            </button>
+          </form>
+        </div>
+      </Card>
+
+      <div className="flex items-baseline gap-3">
+        <h2 className="font-display text-lg font-medium">級別預設</h2>
+      </div>
+      <p className="text-sm text-muted">
+        新增場次時點一下級別 chip，就會自動帶入「預設買入」。改動不會影響已記錄的場次。
+      </p>
+
+      <Card className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-subtle">目前的級別</h2>
+
+        {presets.length === 0 ? (
+          <p className="text-sm text-muted">還沒有級別，用下面的表單新增一個。</p>
+        ) : (
+          <div className="flex flex-col divide-y divide-border">
+            {presets.map((p, i) => (
+              <div key={p.id} className="flex flex-wrap items-center gap-2 py-3">
+                {/* Inline edit */}
+                <form action={updatePreset} className="flex items-center gap-2">
+                  <input type="hidden" name="id" value={p.id} />
+                  <input
+                    name="label"
+                    defaultValue={p.label}
+                    maxLength={10}
+                    required
+                    className={cn(inputClass, "w-24 py-2")}
+                  />
+                  <input
+                    name="buyIn"
+                    inputMode="numeric"
+                    defaultValue={p.buyIn}
+                    required
+                    className={cn(inputClass, "tnum w-28 py-2")}
+                  />
+                  <button
+                    type="submit"
+                    className="rounded-lg border border-border bg-surface px-3 py-2 text-sm font-medium text-subtle transition hover:bg-chip"
+                  >
+                    儲存
+                  </button>
+                </form>
+
+                <div className="ml-auto flex items-center gap-1">
+                  <form action={movePreset}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <input type="hidden" name="dir" value="up" />
+                    <button
+                      type="submit"
+                      disabled={i === 0}
+                      aria-label="上移"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-chip disabled:opacity-30"
+                    >
+                      ↑
+                    </button>
+                  </form>
+                  <form action={movePreset}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <input type="hidden" name="dir" value="down" />
+                    <button
+                      type="submit"
+                      disabled={i === presets.length - 1}
+                      aria-label="下移"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-chip disabled:opacity-30"
+                    >
+                      ↓
+                    </button>
+                  </form>
+                  <form action={deletePreset}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <button
+                      type="submit"
+                      aria-label="刪除"
+                      className="grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-chip hover:text-negative"
+                    >
+                      ✕
+                    </button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      <Card className="flex flex-col gap-4">
+        <h2 className="text-sm font-semibold text-subtle">新增級別</h2>
+        <AddPresetForm />
+      </Card>
+    </div>
+  );
+}

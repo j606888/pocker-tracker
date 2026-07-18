@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
+/*
+  Design tokens — "高級 fintech" 方向 (mockup B).
+  Semantic vars flip per theme; components only ever read the semantic names.
+*/
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #faf9f6;
+  --surface: #ffffff;
+  --surface-2: #f6f3ec;
+  --fg: #2a2724;
+  --subtle: #6b6459;
+  --muted: #9a938a;
+  --border: #ece8e1;
+  --accent: #2f7d5b;
+  --accent-hover: #286b4e;
+  --accent-soft: #eef5f0;
+  --positive: #2f7d5b;
+  --negative: #d64545;
+  --chip: #f2ede4;
 }
+
+.dark-tokens {
+  --bg: #111310;
+  --surface: #191c17;
+  --surface-2: #20241d;
+  --fg: #eceae3;
+  --subtle: #b4b6ac;
+  --muted: #8a8d82;
+  --border: #282c24;
+  --accent: #57b98d;
+  --accent-hover: #66c79b;
+  --accent-soft: #1c281f;
+  --positive: #57b98d;
+  --negative: #e0776f;
+  --chip: #23271f;
+}
+
+/* OS preference by default … */
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#111310; --surface:#191c17; --surface-2:#20241d; --fg:#eceae3; --subtle:#b4b6ac; --muted:#8a8d82; --border:#282c24; --accent:#57b98d; --accent-hover:#66c79b; --accent-soft:#1c281f; --positive:#57b98d; --negative:#e0776f; --chip:#23271f; }
+}
+/* … but an explicit toggle always wins, in both directions. */
+:root[data-theme="light"] { --bg:#faf9f6; --surface:#ffffff; --surface-2:#f6f3ec; --fg:#2a2724; --subtle:#6b6459; --muted:#9a938a; --border:#ece8e1; --accent:#2f7d5b; --accent-hover:#286b4e; --accent-soft:#eef5f0; --positive:#2f7d5b; --negative:#d64545; --chip:#f2ede4; }
+:root[data-theme="dark"]  { --bg:#111310; --surface:#191c17; --surface-2:#20241d; --fg:#eceae3; --subtle:#b4b6ac; --muted:#8a8d82; --border:#282c24; --accent:#57b98d; --accent-hover:#66c79b; --accent-soft:#1c281f; --positive:#57b98d; --negative:#e0776f; --chip:#23271f; }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-fg: var(--fg);
+  --color-subtle: var(--subtle);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-chip: var(--chip);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html { height: 100%; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+/* Utility: line up digits in tables and stats. */
+.tnum { font-variant-numeric: tabular-nums; }
