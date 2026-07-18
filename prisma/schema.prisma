@@ -1,0 +1,51 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime      @default(now())
+
+  levelPresets LevelPreset[]
+  sessions     Session[]
+}
+
+/// Per-user quick-entry level (e.g. "6600"): tapping a chip fills the buy-in.
+model LevelPreset {
+  id        String    @id @default(cuid())
+  userId    String
+  label     String
+  buyIn     Int
+  sortOrder Int       @default(0)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions  Session[]
+
+  @@index([userId])
+}
+
+/// One poker session. Net = cashOut - buyIn - rake (computed at read time).
+model Session {
+  id            String       @id @default(cuid())
+  userId        String
+  playedAt      DateTime     @db.Date
+  levelPresetId String?
+  buyIn         Int
+  cashOut       Int
+  rake          Int          @default(0)
+  note          String?
+  createdAt     DateTime     @default(now())
+
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  levelPreset   LevelPreset? @relation(fields: [levelPresetId], references: [id], onDelete: SetNull)
+
+  @@index([userId, playedAt])
+}
