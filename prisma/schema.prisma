@@ -18,6 +18,29 @@ model User {
   sessions     Session[]
 }
 
+/// Back-office operator. Fully separate from User: its own credentials, its
+/// own /admin/login. An admin can impersonate any User read-only.
+model Admin {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+}
+
+/// One "admin started impersonating a user" event. Emails are snapshotted (no
+/// FK) so the trail survives Admin/User deletion.
+model ImpersonationLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  adminEmail String
+  userId     String
+  userEmail  String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 /// Per-user quick-entry level (e.g. "6600"): tapping a chip fills the buy-in.
 model LevelPreset {
   id        String    @id @default(cuid())

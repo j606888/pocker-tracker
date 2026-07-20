@@ -15,7 +15,13 @@ function toneClass(n: number) {
   return n > 0 ? "text-positive" : n < 0 ? "text-negative" : "text-muted";
 }
 
-export function SessionRowItem({ s }: { s: SessionRow }) {
+export function SessionRowItem({
+  s,
+  readOnly = false,
+}: {
+  s: SessionRow;
+  readOnly?: boolean;
+}) {
   return (
     <div className="flex items-center gap-3 border-b border-border/70 py-2.5 last:border-b-0">
       <span className="min-w-[3.25rem] rounded-md bg-chip px-2 py-0.5 text-center text-xs font-semibold text-subtle">
@@ -37,28 +43,36 @@ export function SessionRowItem({ s }: { s: SessionRow }) {
         {formatMoney(s.net, true)}
       </span>
 
-      <div className="flex items-center gap-1">
-        <Link
-          href={`/sessions/${s.id}/edit`}
-          className="rounded-md px-2 py-1 text-xs text-muted transition hover:bg-chip hover:text-fg"
-        >
-          編輯
-        </Link>
-        <form action={deleteSession}>
-          <input type="hidden" name="id" value={s.id} />
-          <button
-            type="submit"
-            className="rounded-md px-2 py-1 text-xs text-muted transition hover:bg-chip hover:text-negative"
+      {!readOnly && (
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/sessions/${s.id}/edit`}
+            className="rounded-md px-2 py-1 text-xs text-muted transition hover:bg-chip hover:text-fg"
           >
-            刪除
-          </button>
-        </form>
-      </div>
+            編輯
+          </Link>
+          <form action={deleteSession}>
+            <input type="hidden" name="id" value={s.id} />
+            <button
+              type="submit"
+              className="rounded-md px-2 py-1 text-xs text-muted transition hover:bg-chip hover:text-negative"
+            >
+              刪除
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }
 
-export function SessionList({ groups }: { groups: DayGroup[] }) {
+export function SessionList({
+  groups,
+  readOnly = false,
+}: {
+  groups: DayGroup[];
+  readOnly?: boolean;
+}) {
   if (groups.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-surface px-5 py-10 text-center text-sm text-muted">
@@ -84,7 +98,7 @@ export function SessionList({ groups }: { groups: DayGroup[] }) {
           </div>
           <div className="pt-1">
             {g.sessions.map((s) => (
-              <SessionRowItem key={s.id} s={s} />
+              <SessionRowItem key={s.id} s={s} readOnly={readOnly} />
             ))}
           </div>
         </div>

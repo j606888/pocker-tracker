@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { auth, signOut } from "@/auth";
-import { requireUserId } from "@/lib/session-user";
+import { prisma } from "@/lib/prisma";
+import { requireUserId, getActingAdminId } from "@/lib/session-user";
 import { getLevelPresets } from "@/lib/data/sessions";
 import { updatePreset, deletePreset, movePreset } from "@/lib/actions/presets";
 import { Card } from "@/components/ui/card";
@@ -11,9 +12,23 @@ import { cn } from "@/lib/utils";
 
 export default async function SettingsPage() {
   const userId = await requireUserId();
-  const presets = await getLevelPresets(userId);
-  const session = await auth();
-  const userLabel = session?.user?.name ?? session?.user?.email ?? "";
+  const [presets, session, actingAdminId] = await Promise.all([
+    getLevelPresets(userId),
+    auth(),
+    getActingAdminId(),
+  ]);
+  const readOnly = !!actingAdminId;
+  // While impersonating, the token holds the admin's email — look up the
+  // impersonated user so the account label reflects who we're viewing.
+  const impersonated = readOnly
+    ? await prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true, email: true },
+      })
+    : null;
+  const userLabel = readOnly
+    ? impersonated?.name ?? impersonated?.email ?? ""
+    : session?.user?.name ?? session?.user?.email ?? "";
 
   return (
     <div className="flex flex-col gap-6">
@@ -33,19 +48,21 @@ export default async function SettingsPage() {
         </div>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
-            <button
-              type="submit"
-              className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-subtle transition hover:bg-chip"
+          {!readOnly && (
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/login" });
+              }}
             >
-              登出
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-sm font-medium text-subtle transition hover:bg-chip"
+              >
+                登出
+              </button>
+            </form>
+          )}
         </div>
       </Card>
 
@@ -60,7 +77,22 @@ export default async function SettingsPage() {
         <h2 className="text-sm font-semibold text-subtle">目前的級別</h2>
 
         {presets.length === 0 ? (
-          <p className="text-sm text-muted">還沒有級別，用下面的表單新增一個。</p>
+          <p className="text-sm text-muted">
+            {readOnly ? "這位使用者還沒有級別。" : "還沒有級別，用下面的表單新增一個。"}
+          </p>
+        ) : readOnly ? (
+          <div className="flex flex-col divide-y divide-border">
+            {presets.map((p) => (
+              <div key={p.id} className="flex items-center gap-3 py-3">
+                <span className="min-w-[3.25rem] rounded-md bg-chip px-2 py-0.5 text-center text-xs font-semibold text-subtle">
+                  {p.label}
+                </span>
+                <span className="tnum text-sm text-subtle">
+                  預設買入 {p.buyIn.toLocaleString("en-US")}
+                </span>
+              </div>
+            ))}
+          </div>
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {presets.map((p, i) => (
@@ -132,10 +164,12 @@ export default async function SettingsPage() {
         )}
       </Card>
 
-      <Card className="flex flex-col gap-4">
-        <h2 className="text-sm font-semibold text-subtle">新增級別</h2>
-        <AddPresetForm />
-      </Card>
+      {!readOnly && (
+        <Card className="flex flex-col gap-4">
+          <h2 className="text-sm font-semibold text-subtle">新增級別</h2>
+          <AddPresetForm />
+        </Card>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { requireUserId } from "@/lib/session-user";
+import { requireUserId, getActingAdminId } from "@/lib/session-user";
 import { getSessionsGroupedByDay } from "@/lib/data/sessions";
 import { normalizeMonth } from "@/lib/date-grid";
 import { MonthCalendar, type DayAgg } from "@/components/month-calendar";
@@ -11,6 +11,7 @@ export default async function CalendarPage({
 }) {
   const { month: monthParam, day: dayParam } = await searchParams;
   const userId = await requireUserId();
+  const readOnly = !!(await getActingAdminId());
 
   const month = normalizeMonth(monthParam);
   const today = new Date().toISOString().slice(0, 10);
@@ -41,7 +42,13 @@ export default async function CalendarPage({
         today={today}
       />
 
-      {selectedDay && <DayDetail date={selectedDay} group={selectedGroup} />}
+      {selectedDay && (
+        <DayDetail
+          date={selectedDay}
+          group={selectedGroup}
+          readOnly={readOnly}
+        />
+      )}
     </div>
   );
 }

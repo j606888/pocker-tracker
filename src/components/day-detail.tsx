@@ -33,9 +33,11 @@ function Stat({
 export function DayDetail({
   date,
   group,
+  readOnly = false,
 }: {
   date: string;
   group?: DayGroup;
+  readOnly?: boolean;
 }) {
   const sessions = group?.sessions ?? [];
   const net = group?.dayNet ?? 0;
@@ -83,7 +85,7 @@ export function DayDetail({
 
           <div className="flex flex-col">
             {sessions.map((s) => (
-              <SessionRowItem key={s.id} s={s} />
+              <SessionRowItem key={s.id} s={s} readOnly={readOnly} />
             ))}
           </div>
         </>
