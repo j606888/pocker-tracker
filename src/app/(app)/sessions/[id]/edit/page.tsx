@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
-import { requireUserId } from "@/lib/session-user";
+import { notFound, redirect } from "next/navigation";
+import { requireUserId, getActingAdminId } from "@/lib/session-user";
 import { getLevelPresets, getSessionById, dayKey } from "@/lib/data/sessions";
 import { Card } from "@/components/ui/card";
 import { SessionForm } from "@/components/session-form";
@@ -11,6 +11,8 @@ export default async function EditSessionPage({
 }) {
   const { id } = await params;
   const userId = await requireUserId();
+  // Impersonation is read-only: no editing another user's sessions.
+  if (await getActingAdminId()) redirect("/");
 
   const [presets, session] = await Promise.all([
     getLevelPresets(userId),

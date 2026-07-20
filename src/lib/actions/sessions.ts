@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/session-user";
+import { requireWritableUserId } from "@/lib/session-user";
 import { sessionSchema } from "@/lib/validations";
 
 export type SessionFormState =
@@ -14,7 +14,7 @@ export async function saveSession(
   _prev: SessionFormState,
   formData: FormData
 ): Promise<SessionFormState> {
-  const userId = await requireUserId();
+  const userId = await requireWritableUserId();
 
   const parsed = sessionSchema.safeParse({
     playedAt: formData.get("playedAt"),
@@ -69,7 +69,7 @@ export async function saveSession(
 }
 
 export async function deleteSession(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireWritableUserId();
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return;
 

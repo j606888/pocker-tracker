@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireUserId } from "@/lib/session-user";
+import { requireWritableUserId } from "@/lib/session-user";
 import { presetSchema } from "@/lib/validations";
 
 export type PresetFormState =
@@ -20,7 +20,7 @@ export async function createPreset(
   _prev: PresetFormState,
   formData: FormData
 ): Promise<PresetFormState> {
-  const userId = await requireUserId();
+  const userId = await requireWritableUserId();
   const parsed = presetSchema.safeParse({
     label: formData.get("label"),
     buyIn: formData.get("buyIn"),
@@ -39,7 +39,7 @@ export async function createPreset(
 }
 
 export async function updatePreset(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireWritableUserId();
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return;
 
@@ -57,7 +57,7 @@ export async function updatePreset(formData: FormData): Promise<void> {
 }
 
 export async function deletePreset(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireWritableUserId();
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return;
 
@@ -67,7 +67,7 @@ export async function deletePreset(formData: FormData): Promise<void> {
 }
 
 export async function movePreset(formData: FormData): Promise<void> {
-  const userId = await requireUserId();
+  const userId = await requireWritableUserId();
   const id = formData.get("id");
   const dir = formData.get("dir");
   if (typeof id !== "string" || (dir !== "up" && dir !== "down")) return;

@@ -61,9 +61,11 @@ function NavLink({
 export function BottomNav({
   presets,
   defaultDate,
+  readOnly = false,
 }: {
   presets: Preset[];
   defaultDate: string;
+  readOnly?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -85,7 +87,12 @@ export function BottomNav({
           />
         </div>
 
-        <QuickAdd presets={presets} defaultDate={defaultDate} />
+        {readOnly ? (
+          // Read-only impersonation: no quick-add.
+          <div className="w-14 shrink-0" aria-hidden />
+        ) : (
+          <QuickAdd presets={presets} defaultDate={defaultDate} />
+        )}
 
         <div className="flex flex-1 items-center">
           <NavLink
