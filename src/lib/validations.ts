@@ -23,9 +23,19 @@ export const sessionSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v ? v : null)),
+  venueId: z
+    .string()
+    .optional()
+    .transform((v) => (v ? v : null)),
+  // Total buy-in, rebuys included.
   buyIn: z.coerce.number().int("請輸入整數").nonnegative("不能為負"),
+  rebuys: z.coerce.number().int().min(0).max(99, "加買次數太多了").default(0),
   cashOut: z.coerce.number().int("請輸入整數").nonnegative("不能為負"),
   rake: z.coerce.number().int("請輸入整數").nonnegative("不能為負").default(0),
+  mood: z
+    .enum(["FOCUSED", "NORMAL", "TIRED", "TILT"])
+    .nullish()
+    .transform((v) => v ?? null),
   note: z
     .string()
     .trim()
@@ -42,3 +52,17 @@ export const presetSchema = z.object({
 });
 
 export type PresetInput = z.infer<typeof presetSchema>;
+
+export const venueSchema = z.object({
+  name: z.string().trim().min(1, "請輸入場子名稱").max(12, "最多 12 個字"),
+});
+
+export const bankrollSchema = z.object({
+  // Empty clears it; "120,000" is fine.
+  bankroll: z
+    .string()
+    .trim()
+    .transform((v) => v.replace(/,/g, ""))
+    .refine((v) => v === "" || /^\d+$/.test(v), "請輸入整數")
+    .transform((v) => (v === "" ? null : Number(v))),
+});

@@ -1,140 +1,217 @@
 import { prisma } from "@/lib/prisma";
-import { net, dayKey, monthFilter } from "@/lib/data/sessions";
+import { net, dayKey } from "@/lib/data/sessions";
+import { MOODS, type MoodValue } from "@/lib/mood";
+
+export type Range = "month" | "3m" | "all";
+
+export const RANGES: { value: Range; label: string }[] = [
+  { value: "month", label: "本月" },
+  { value: "3m", label: "近 3 月" },
+  { value: "all", label: "全部" },
+];
+
+export function normalizeRange(r?: string): Range {
+  return r === "3m" || r === "all" ? r : "month";
+}
+
+/** Prisma date filter for a range, in UTC like the rest of the app. */
+function rangeFilter(range: Range) {
+  if (range === "all") return undefined;
+  const now = new Date();
+  const monthsBack = range === "month" ? 0 : 2;
+  const gte = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 1)
+  );
+  return { playedAt: { gte } };
+}
 
 export type WeekdayStat = { weekday: number; net: number; count: number };
+export type GroupStat = { label: string; count: number; net: number };
 
 export type Stats = {
-  totalNet: number;
   count: number;
   wins: number;
   winRate: number; // 0..1
-  biggestWin: number;
-  biggestLoss: number;
-  totalRake: number;
-  /** Sum of every buy-in — the total volume put on the table. */
-  totalBuyIn: number;
-  /** Net / total buy-in (0..). */
-  roi: number;
-  /** Average net per session. */
+  totalNet: number;
   avgNet: number;
-  bestDay: { date: string; net: number } | null;
-  worstDay: { date: string; net: number } | null;
-  /** Longest run of consecutive winning / losing sessions (chronological). */
-  longestWinStreak: number;
+  biggestLoss: number;
   longestLoseStreak: number;
-  byLevel: { label: string; count: number; net: number }[];
+  /** Sample standard deviation of per-session net; null below 2 sessions. */
+  stdDev: number | null;
+  /**
+   * Running net after each session, chronological. Point 0 is the start (0),
+   * so point i is "after session i".
+   */
+  curve: { date: string | null; value: number }[];
+  /** Deepest peak-to-trough fall of `curve`; null if it never dipped. */
+  maxDrawdown: {
+    amount: number; // negative
+    peakIndex: number;
+    troughIndex: number;
+  } | null;
+  /** Moods with at least one session, in MOODS order. */
+  byMood: (GroupStat & { mood: MoodValue })[];
+  unmarkedMood: number;
+  byVenue: GroupStat[];
+  unmarkedVenue: number;
+  byLevel: GroupStat[];
   /** Net + count per weekday (index 0=Sun .. 6=Sat), always length 7. */
   byWeekday: WeekdayStat[];
-  /** Running cumulative net, one point per day, chronological. */
-  cumulative: { date: string; value: number }[];
 };
 
-export async function getStats(userId: string, month?: string): Promise<Stats> {
+/** Per-session buy-in before rebuys, e.g. 13,200 with 1 rebuy -> 6,600. */
+const unitBuyIn = (s: { buyIn: number; rebuys: number }) =>
+  Math.round(s.buyIn / (1 + s.rebuys));
+
+function addTo(map: Map<string, GroupStat>, label: string, n: number) {
+  const g = map.get(label);
+  if (g) {
+    g.count += 1;
+    g.net += n;
+  } else {
+    map.set(label, { label, count: 1, net: n });
+  }
+}
+
+export async function getStats(userId: string, range: Range): Promise<Stats> {
   const rows = await prisma.session.findMany({
-    where: { userId, ...monthFilter(month) },
+    where: { userId, ...rangeFilter(range) },
     orderBy: [{ playedAt: "asc" }, { createdAt: "asc" }],
-    include: { levelPreset: { select: { label: true } } },
+    include: {
+      levelPreset: { select: { label: true } },
+      venue: { select: { name: true } },
+    },
   });
 
   let totalNet = 0;
   let wins = 0;
-  let totalRake = 0;
-  let totalBuyIn = 0;
-  let biggestWin = 0;
   let biggestLoss = 0;
-
-  let winStreak = 0;
   let loseStreak = 0;
-  let longestWinStreak = 0;
   let longestLoseStreak = 0;
 
-  const byLevel = new Map<string, { label: string; count: number; net: number }>();
+  const curve: Stats["curve"] = [{ date: null, value: 0 }];
+  let peak = 0;
+  let peakIndex = 0;
+  let maxDrawdown: Stats["maxDrawdown"] = null;
+
+  const moodMap = new Map<MoodValue, GroupStat>();
+  let unmarkedMood = 0;
+  const venueMap = new Map<string, GroupStat>();
+  let unmarkedVenue = 0;
+  const levelMap = new Map<string, GroupStat>();
   const byWeekday: WeekdayStat[] = Array.from({ length: 7 }, (_, i) => ({
     weekday: i,
     net: 0,
     count: 0,
   }));
-  const dayNet = new Map<string, number>();
-  const dayCum = new Map<string, number>();
+
+  const nets: number[] = [];
 
   for (const r of rows) {
     const n = net(r);
+    nets.push(n);
     totalNet += n;
-    totalRake += r.rake;
-    totalBuyIn += r.buyIn;
     if (n > 0) wins += 1;
-    if (n > biggestWin) biggestWin = n;
     if (n < biggestLoss) biggestLoss = n;
 
-    // Consecutive win / lose streaks (break-even resets both).
-    if (n > 0) {
-      winStreak += 1;
-      loseStreak = 0;
-    } else if (n < 0) {
-      loseStreak += 1;
-      winStreak = 0;
-    } else {
-      winStreak = 0;
-      loseStreak = 0;
-    }
-    if (winStreak > longestWinStreak) longestWinStreak = winStreak;
+    // Losing streak (a win or break-even resets it).
+    loseStreak = n < 0 ? loseStreak + 1 : 0;
     if (loseStreak > longestLoseStreak) longestLoseStreak = loseStreak;
 
-    const key = r.levelPreset?.label ?? String(r.buyIn);
-    const lv = byLevel.get(key);
-    if (lv) {
-      lv.count += 1;
-      lv.net += n;
-    } else {
-      byLevel.set(key, { label: key, count: 1, net: n });
+    // Running net + deepest fall from a previous high.
+    curve.push({ date: dayKey(r.playedAt), value: totalNet });
+    const i = curve.length - 1;
+    if (totalNet > peak) {
+      peak = totalNet;
+      peakIndex = i;
+    } else if (totalNet - peak < (maxDrawdown?.amount ?? 0)) {
+      maxDrawdown = { amount: totalNet - peak, peakIndex, troughIndex: i };
     }
+
+    if (r.mood) {
+      const m = moodMap.get(r.mood);
+      if (m) {
+        m.count += 1;
+        m.net += n;
+      } else {
+        moodMap.set(r.mood, { label: r.mood, count: 1, net: n });
+      }
+    } else {
+      unmarkedMood += 1;
+    }
+
+    if (r.venue) addTo(venueMap, r.venue.name, n);
+    else unmarkedVenue += 1;
+
+    addTo(levelMap, r.levelPreset?.label ?? String(unitBuyIn(r)), n);
 
     const wd = byWeekday[r.playedAt.getUTCDay()];
     wd.net += n;
     wd.count += 1;
-
-    const dk = dayKey(r.playedAt);
-    dayNet.set(dk, (dayNet.get(dk) ?? 0) + n);
-    dayCum.set(dk, totalNet); // cumulative value at the end of each day
   }
 
-  // Best / worst single day.
-  let bestDay: { date: string; net: number } | null = null;
-  let worstDay: { date: string; net: number } | null = null;
-  for (const [date, n] of dayNet) {
-    if (!bestDay || n > bestDay.net) bestDay = { date, net: n };
-    if (!worstDay || n < worstDay.net) worstDay = { date, net: n };
-  }
+  const count = rows.length;
+  const avgNet = count ? totalNet / count : 0;
+  const stdDev =
+    count >= 2
+      ? Math.sqrt(
+          nets.reduce((a, n) => a + (n - avgNet) ** 2, 0) / (count - 1)
+        )
+      : null;
+
+  const byMood = MOODS.flatMap(({ value, label }) => {
+    const m = moodMap.get(value);
+    return m ? [{ ...m, label, mood: value }] : [];
+  });
 
   return {
-    totalNet,
-    count: rows.length,
+    count,
     wins,
-    winRate: rows.length ? wins / rows.length : 0,
-    biggestWin,
+    winRate: count ? wins / count : 0,
+    totalNet,
+    avgNet,
     biggestLoss,
-    totalRake,
-    totalBuyIn,
-    roi: totalBuyIn ? totalNet / totalBuyIn : 0,
-    avgNet: rows.length ? totalNet / rows.length : 0,
-    bestDay,
-    worstDay,
-    longestWinStreak,
     longestLoseStreak,
-    byLevel: [...byLevel.values()].sort((a, b) => b.net - a.net),
+    stdDev,
+    curve,
+    maxDrawdown,
+    byMood,
+    unmarkedMood,
+    byVenue: [...venueMap.values()].sort((a, b) => b.net - a.net),
+    unmarkedVenue,
+    byLevel: [...levelMap.values()].sort((a, b) => b.net - a.net),
     byWeekday,
-    cumulative: [...dayCum.entries()].map(([date, value]) => ({ date, value })),
   };
 }
 
-/** Distinct months (YYYY-MM) that have sessions, newest first. */
-export async function getAvailableMonths(userId: string): Promise<string[]> {
-  const rows = await prisma.session.findMany({
-    where: { userId },
-    select: { playedAt: true },
-    orderBy: { playedAt: "desc" },
-  });
-  const months = new Set<string>();
-  for (const r of rows) months.add(dayKey(r.playedAt).slice(0, 7));
-  return [...months];
+/**
+ * Bankroll plus the buy-in to measure it in: the user's most-played
+ * per-session buy-in (all time), ties going to the bigger one.
+ */
+export async function getBankroll(
+  userId: string
+): Promise<{ bankroll: number | null; unit: number | null }> {
+  const [user, rows] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { bankroll: true } }),
+    prisma.session.findMany({
+      where: { userId },
+      select: { buyIn: true, rebuys: true },
+    }),
+  ]);
+
+  const tally = new Map<number, number>();
+  for (const r of rows) {
+    const u = unitBuyIn(r);
+    if (u > 0) tally.set(u, (tally.get(u) ?? 0) + 1);
+  }
+  let unit: number | null = null;
+  let best = 0;
+  for (const [u, c] of tally) {
+    if (c > best || (c === best && unit !== null && u > unit)) {
+      unit = u;
+      best = c;
+    }
+  }
+
+  return { bankroll: user?.bankroll ?? null, unit };
 }

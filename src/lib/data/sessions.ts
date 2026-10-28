@@ -1,13 +1,18 @@
 import { prisma } from "@/lib/prisma";
+import type { MoodValue } from "@/lib/mood";
 
 export type SessionRow = {
   id: string;
   playedAt: Date;
+  /** Total buy-in, rebuys included. */
   buyIn: number;
+  rebuys: number;
   cashOut: number;
   rake: number;
   note: string | null;
   levelLabel: string | null;
+  venueName: string | null;
+  mood: MoodValue | null;
   net: number;
 };
 
@@ -40,7 +45,14 @@ export async function getLevelPresets(userId: string) {
   });
 }
 
-/** All sessions for a user, newest day first, grouped by day with day nets. */
+export async function getVenues(userId: string) {
+  return prisma.venue.findMany({
+    where: { userId },
+    orderBy: { sortOrder: "asc" },
+  });
+}
+
+/** A month's sessions, newest day first, grouped by day with day nets. */
 export async function getSessionsGroupedByDay(
   userId: string,
   month?: string
@@ -48,7 +60,10 @@ export async function getSessionsGroupedByDay(
   const rows = await prisma.session.findMany({
     where: { userId, ...monthFilter(month) },
     orderBy: [{ playedAt: "desc" }, { createdAt: "asc" }],
-    include: { levelPreset: { select: { label: true } } },
+    include: {
+      levelPreset: { select: { label: true } },
+      venue: { select: { name: true } },
+    },
   });
 
   const groups = new Map<string, DayGroup>();
@@ -58,10 +73,13 @@ export async function getSessionsGroupedByDay(
       id: r.id,
       playedAt: r.playedAt,
       buyIn: r.buyIn,
+      rebuys: r.rebuys,
       cashOut: r.cashOut,
       rake: r.rake,
       note: r.note,
       levelLabel: r.levelPreset?.label ?? null,
+      venueName: r.venue?.name ?? null,
+      mood: r.mood,
       net: net(r),
     };
     const g = groups.get(key);

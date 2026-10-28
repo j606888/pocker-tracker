@@ -1,134 +1,332 @@
+import Link from "next/link";
 import type { Stats } from "@/lib/data/stats";
 import { Card } from "@/components/ui/card";
-import { StatCard } from "@/components/ui/stat-card";
-import { Sparkline } from "@/components/ui/sparkline";
+import { CumulativeChart } from "@/components/cumulative-chart";
 import { WeekdayBreakdown } from "@/components/weekday-breakdown";
 import { formatMoney, cn } from "@/lib/utils";
 
-function tone(n: number) {
-  return n > 0 ? "positive" : n < 0 ? "negative" : "neutral";
-}
-
 // Literal class names so Tailwind's scanner picks them up.
 function toneText(n: number) {
-  return n > 0 ? "text-positive" : n < 0 ? "text-negative" : "text-muted";
+  return n > 0 ? "text-positive" : n < 0 ? "text-negative" : "text-fg";
 }
 
-/** YYYY-MM-DD -> "M/D" */
-function shortDate(date: string) {
-  const d = new Date(`${date}T00:00:00.000Z`);
-  return `${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
+/** Card heading, matching the design's 15px bold section titles. */
+function Heading({
+  children,
+  aside,
+}: {
+  children: React.ReactNode;
+  aside?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3">
+      <h2 className="text-[15px] font-bold">{children}</h2>
+      {aside}
+    </div>
+  );
 }
 
-function pct(n: number) {
-  return `${n > 0 ? "+" : n < 0 ? "−" : ""}${Math.abs(Math.round(n * 100))}%`;
+function StatRow({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+}) {
+  return (
+    <div className="flex justify-between gap-3 border-t border-border py-2.5 text-sm">
+      <span className="text-subtle">{label}</span>
+      <span className={cn("tnum font-semibold", tone)}>{value}</span>
+    </div>
+  );
+}
+
+/** "Common guideline" range for a cash-game bankroll, in buy-ins. */
+const BANKROLL_MIN = 20;
+const BANKROLL_MAX = 30;
+
+function BankrollCard({
+  bankroll,
+  unit,
+}: {
+  bankroll: number | null;
+  unit: number | null;
+}) {
+  if (bankroll === null || !unit) {
+    return (
+      <p className="mt-1.5 rounded-xl bg-surface-2 px-3.5 py-3 text-[13px] leading-relaxed text-subtle">
+        在
+        <Link href="/settings" className="text-accent hover:underline">
+          設定
+        </Link>
+        填入資金池，就能看到夠撐幾個買入。
+      </p>
+    );
+  }
+
+  const buyIns = Math.floor(bankroll / unit);
+  const status =
+    buyIns < BANKROLL_MIN
+      ? { label: "略低於建議", cls: "bg-warn-bg text-warn-fg" }
+      : buyIns <= BANKROLL_MAX
+        ? { label: "在建議範圍", cls: "bg-accent-soft text-accent" }
+        : { label: "很充足", cls: "bg-accent-soft text-accent" };
+  const fill = Math.min(buyIns / BANKROLL_MAX, 1) * 100;
+  const guideLeft = (BANKROLL_MIN / BANKROLL_MAX) * 100;
+
+  return (
+    <div className="mt-1.5 flex flex-col gap-2.5 rounded-xl bg-surface-2 p-3.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="tnum text-[13px] font-semibold">
+          資金池 {formatMoney(bankroll)}
+        </span>
+        <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", status.cls)}>
+          {status.label}
+        </span>
+      </div>
+      <span className="tnum font-display text-2xl font-medium">
+        {buyIns} 個買入{" "}
+        <span className="font-sans text-[13px] font-normal text-muted">
+          （以 {unit.toLocaleString("en-US")} 計）
+        </span>
+      </span>
+      <div className="relative h-2 rounded-full bg-border" aria-hidden>
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-accent"
+          style={{ width: `${fill}%` }}
+        />
+        <div
+          className="absolute -top-[3px] right-0 h-3.5 rounded-md border-[1.5px] border-dashed border-warn-fg"
+          style={{ left: `${guideLeft}%` }}
+        />
+      </div>
+      <span className="text-xs leading-relaxed text-subtle">
+        虛線框是常見建議：準備 {BANKROLL_MIN}–{BANKROLL_MAX} 個買入，比較撐得過正常的下風期。
+      </span>
+    </div>
+  );
 }
 
 export function StatsOverview({
   stats,
   scopeLabel,
+  bankroll,
 }: {
   stats: Stats;
   scopeLabel: string;
+  bankroll: { bankroll: number | null; unit: number | null };
 }) {
+  if (stats.count === 0) {
+    return (
+      <Card className="py-10 text-center text-sm text-muted">
+        這段期間還沒有紀錄。
+      </Card>
+    );
+  }
+
   const winPct = Math.round(stats.winRate * 100);
+  const avg = Math.round(stats.avgNet);
+
+  const maxMood = Math.max(...stats.byMood.map((m) => Math.abs(m.net)), 1);
+  const rough = stats.byMood.filter(
+    (m) => m.mood === "TIRED" || m.mood === "TILT"
+  );
+  const roughCount = rough.reduce((a, m) => a + m.count, 0);
+  const roughNet = rough.reduce((a, m) => a + m.net, 0);
 
   return (
-    <div className="flex flex-col gap-4">
-      <StatCard
-        label={`${scopeLabel}淨利 · TWD`}
-        value={formatMoney(stats.totalNet, true)}
-        tone={tone(stats.totalNet)}
-        hint={`${stats.count} 場 · 勝率 ${winPct}%`}
-        emphasis
-      />
-
-      <Card className="flex flex-col gap-2">
-        <div className="flex items-baseline justify-between">
-          <span className="text-xs uppercase tracking-wider text-muted">
-            累積淨利
-          </span>
-          <span className={cn("tnum text-sm font-semibold", toneText(stats.totalNet))}>
-            {formatMoney(stats.totalNet, true)}
-          </span>
+    <div className="flex flex-col gap-3.5">
+      {/* Hero */}
+      <section className="flex flex-col gap-3.5 rounded-2xl border border-border bg-surface px-4 py-[18px]">
+        <span className="text-[13px] text-muted">{scopeLabel}淨利 · TWD</span>
+        <span
+          className={cn(
+            "tnum font-display text-[46px] font-medium leading-none",
+            toneText(stats.totalNet)
+          )}
+        >
+          {formatMoney(stats.totalNet, true)}
+        </span>
+        <div className="grid grid-cols-3 gap-2 border-t border-border pt-3">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted">場次</span>
+            <span className="tnum font-display text-[22px] font-medium">
+              {stats.count}
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted">勝率</span>
+            <span className="tnum font-display text-[22px] font-medium">
+              {winPct}%
+            </span>
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-xs text-muted">平均每場</span>
+            <span
+              className={cn(
+                "tnum font-display text-[22px] font-medium",
+                toneText(avg)
+              )}
+            >
+              {formatMoney(avg, true)}
+            </span>
+          </div>
         </div>
-        <Sparkline values={stats.cumulative.map((c) => c.value)} />
+      </section>
+
+      <Card className="flex flex-col gap-2.5 p-4">
+        <Heading
+          aside={
+            <span className={cn("tnum text-sm font-semibold", toneText(stats.totalNet))}>
+              {formatMoney(stats.totalNet, true)}
+            </span>
+          }
+        >
+          累積淨利
+        </Heading>
+        <CumulativeChart curve={stats.curve} maxDrawdown={stats.maxDrawdown} />
       </Card>
 
-      {/* Core poker metrics */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="勝率" value={`${winPct}%`} hint={`${stats.wins}/${stats.count} 場`} />
-        <StatCard
-          label="ROI"
-          value={pct(stats.roi)}
-          tone={tone(stats.roi)}
-          hint="淨利 / 總買入"
-        />
-        <StatCard
-          label="平均每場"
-          value={formatMoney(Math.round(stats.avgNet), true)}
-          tone={tone(stats.avgNet)}
-        />
-        <StatCard label="總買入量" value={formatMoney(stats.totalBuyIn)} />
-      </div>
-
-      {/* Extremes & streaks */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="最大單場" value={formatMoney(stats.biggestWin, true)} tone="positive" />
-        <StatCard label="最大單敗" value={formatMoney(stats.biggestLoss, true)} tone={stats.biggestLoss < 0 ? "negative" : "neutral"} />
-        <StatCard
-          label="最佳單日"
-          value={stats.bestDay ? formatMoney(stats.bestDay.net, true) : "—"}
-          tone="positive"
-          hint={stats.bestDay ? shortDate(stats.bestDay.date) : undefined}
-        />
-        <StatCard
-          label="最差單日"
-          value={stats.worstDay ? formatMoney(stats.worstDay.net, true) : "—"}
-          tone={stats.worstDay && stats.worstDay.net < 0 ? "negative" : "neutral"}
-          hint={stats.worstDay ? shortDate(stats.worstDay.date) : undefined}
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
-          label="最長連勝"
-          value={`${stats.longestWinStreak} 場`}
-          tone={stats.longestWinStreak > 0 ? "positive" : "neutral"}
-        />
-        <StatCard
-          label="最長連敗"
-          value={`${stats.longestLoseStreak} 場`}
-          tone={stats.longestLoseStreak > 0 ? "negative" : "neutral"}
-        />
-        <StatCard label="水費支出" value={formatMoney(stats.totalRake)} />
-      </div>
-
-      <WeekdayBreakdown byWeekday={stats.byWeekday} />
-
-      {stats.byLevel.length > 0 && (
-        <Card className="flex flex-col gap-2">
-          <span className="text-xs uppercase tracking-wider text-muted">
-            依級別
-          </span>
-          <div className="flex flex-col">
-            {stats.byLevel.map((lv) => (
+      <Card className="flex flex-col gap-1 p-4">
+        <Heading
+          aside={
+            stats.unmarkedMood > 0 ? (
+              <span className="text-xs text-muted">
+                {stats.unmarkedMood} 場未標記
+              </span>
+            ) : null
+          }
+        >
+          依心態
+        </Heading>
+        {stats.byMood.length === 0 ? (
+          <p className="py-3 text-[13px] text-muted">
+            記一筆時點選心態，這裡就會看出不同狀態下的輸贏。
+          </p>
+        ) : (
+          <>
+            {stats.byMood.map((m) => (
               <div
-                key={lv.label}
-                className="flex items-center gap-3 border-b border-border/70 py-2 text-sm last:border-b-0"
+                key={m.mood}
+                className="grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-2.5 border-b border-border py-2.5 text-sm last:border-b-0"
               >
-                <span className="min-w-[3.25rem] rounded-md bg-chip px-2 py-0.5 text-center text-xs font-semibold text-subtle">
-                  {lv.label}
-                </span>
-                <span className="text-muted">{lv.count} 場</span>
-                <span
-                  className={cn("tnum ml-auto font-semibold", toneText(lv.net))}
-                >
-                  {formatMoney(lv.net, true)}
+                <span>{m.label}</span>
+                <div className="h-2 rounded-full bg-chip" aria-hidden>
+                  <div
+                    className={cn(
+                      "h-2 rounded-full",
+                      m.net >= 0 ? "bg-positive" : "bg-negative"
+                    )}
+                    style={{ width: `${(Math.abs(m.net) / maxMood) * 100}%` }}
+                  />
+                </div>
+                <span className={cn("tnum min-w-[7rem] text-right font-semibold", toneText(m.net))}>
+                  {m.count} 場 · {formatMoney(m.net, true)}
                 </span>
               </div>
             ))}
+            {roughCount > 0 && roughNet < 0 && (
+              <p className="mt-1.5 rounded-xl bg-surface-2 px-3 py-2.5 text-[13px] leading-relaxed text-subtle">
+                疲累或上頭的 {roughCount} 場合計 {formatMoney(roughNet, true)}
+                。狀態不好時，考慮早點離桌。
+              </p>
+            )}
+          </>
+        )}
+      </Card>
+
+      {stats.byVenue.length > 0 && (
+        <Card className="flex flex-col p-4 pb-1.5">
+          <Heading
+            aside={
+              stats.unmarkedVenue > 0 ? (
+                <span className="text-xs text-muted">
+                  {stats.unmarkedVenue} 場未標記
+                </span>
+              ) : null
+            }
+          >
+            依場子
+          </Heading>
+          <div className="mt-1.5">
+            {stats.byVenue.map((v) => (
+              <StatRow
+                key={v.label}
+                label={v.label}
+                value={`${v.count} 場 · ${formatMoney(v.net, true)}`}
+                tone={toneText(v.net)}
+              />
+            ))}
           </div>
+        </Card>
+      )}
+
+      <WeekdayBreakdown byWeekday={stats.byWeekday} />
+
+      <Card className="flex flex-col p-4">
+        <Heading>風險與波動</Heading>
+        <div className="mt-1.5">
+          <StatRow
+            label="最大回撤"
+            value={
+              stats.maxDrawdown ? formatMoney(stats.maxDrawdown.amount, true) : "—"
+            }
+            tone={stats.maxDrawdown ? "text-negative" : undefined}
+          />
+          <StatRow
+            label="每場標準差"
+            value={
+              stats.stdDev === null
+                ? "—"
+                : `±${formatMoney(Math.round(stats.stdDev / 10) * 10)}`
+            }
+          />
+          <StatRow
+            label="最大單敗"
+            value={stats.biggestLoss < 0 ? formatMoney(stats.biggestLoss, true) : "—"}
+            tone={stats.biggestLoss < 0 ? "text-negative" : undefined}
+          />
+          <StatRow label="最長連敗" value={`${stats.longestLoseStreak} 場`} />
+        </div>
+        <BankrollCard {...bankroll} />
+      </Card>
+
+      {stats.byLevel.length > 0 && (
+        <Card className="flex flex-col gap-1.5 p-4">
+          <Heading>依級別</Heading>
+          <table className="tnum w-full border-collapse text-sm">
+            <thead>
+              <tr className="text-xs text-muted">
+                <th className="border-b border-border py-1.5 text-left font-semibold">級別</th>
+                <th className="border-b border-border py-1.5 text-right font-semibold">場次</th>
+                <th className="border-b border-border py-1.5 text-right font-semibold">淨利</th>
+                <th className="border-b border-border py-1.5 text-right font-semibold">平均</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.byLevel.map((lv) => {
+                const lvAvg = Math.round(lv.net / lv.count);
+                return (
+                  <tr key={lv.label} className="border-b border-border last:border-b-0">
+                    <td className="py-2.5">
+                      <span className="rounded-md bg-chip px-2 py-0.5 text-xs font-semibold text-subtle">
+                        {lv.label}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right">{lv.count}</td>
+                    <td className={cn("py-2.5 text-right font-semibold", toneText(lv.net))}>
+                      {formatMoney(lv.net, true)}
+                    </td>
+                    <td className={cn("py-2.5 text-right font-semibold", toneText(lvAvg))}>
+                      {formatMoney(lvAvg, true)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </Card>
       )}
     </div>

@@ -5,6 +5,9 @@ import { authConfig } from "@/auth.config";
 export default NextAuth(authConfig).auth;
 
 export const config = {
-  // Run on everything except static assets and the auth API.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Run on everything except static assets, the auth API, and the PWA files
+  // (iOS fetches the icon / manifest without being logged in).
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon).*)",
+  ],
 };

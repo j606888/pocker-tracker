@@ -1,8 +1,14 @@
 import { notFound, redirect } from "next/navigation";
 import { requireUserId, getActingAdminId } from "@/lib/session-user";
-import { getLevelPresets, getSessionById, dayKey } from "@/lib/data/sessions";
+import {
+  getLevelPresets,
+  getVenues,
+  getSessionById,
+  dayKey,
+} from "@/lib/data/sessions";
 import { Card } from "@/components/ui/card";
 import { SessionForm } from "@/components/session-form";
+import { DeleteSessionButton } from "@/components/delete-session-button";
 
 export default async function EditSessionPage({
   params,
@@ -14,8 +20,9 @@ export default async function EditSessionPage({
   // Impersonation is read-only: no editing another user's sessions.
   if (await getActingAdminId()) redirect("/");
 
-  const [presets, session] = await Promise.all([
+  const [presets, venues, session] = await Promise.all([
     getLevelPresets(userId),
+    getVenues(userId),
     getSessionById(userId, id),
   ]);
   if (!session) notFound();
@@ -30,18 +37,23 @@ export default async function EditSessionPage({
             label: p.label,
             buyIn: p.buyIn,
           }))}
+          venues={venues.map((v) => ({ id: v.id, name: v.name }))}
           defaultDate={dayKey(session.playedAt)}
           initial={{
             id: session.id,
             playedAt: dayKey(session.playedAt),
             levelPresetId: session.levelPresetId,
+            venueId: session.venueId,
             buyIn: session.buyIn,
+            rebuys: session.rebuys,
             cashOut: session.cashOut,
             rake: session.rake,
+            mood: session.mood,
             note: session.note,
           }}
         />
       </Card>
+      <DeleteSessionButton id={session.id} />
     </div>
   );
 }

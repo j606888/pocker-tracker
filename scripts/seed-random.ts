@@ -3,10 +3,11 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 // Fill random sessions from the day after the existing golden sample
-// (2026-05-04) up to "today" (2026-07-19), for the demo user.
+// (2026-05-04) up to today (override with TO=YYYY-MM-DD), for the demo user.
 const EMAIL = "demo@pocker.local";
 const FROM = "2026-05-05";
-const TO = "2026-07-19";
+const TO = process.env.TO ?? new Date().toISOString().slice(0, 10);
+const VENUES = ["俱樂部 A", "俱樂部 B"];
 
 const rand = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -34,6 +35,15 @@ const OUTCOMES: number[] = [
   2.2, 2.6, 3.0,
 ];
 
+// Roughly: mostly focused/normal, sometimes tired or tilted; some left blank.
+const MOODS = [
+  "FOCUSED", "FOCUSED", "FOCUSED",
+  "NORMAL", "NORMAL",
+  "TIRED",
+  "TILT",
+  null, null,
+] as const;
+
 const NOTES = [
   "阿晉的場",
   "禮拜五夜場",
@@ -54,13 +64,25 @@ async function main() {
     orderBy: { sortOrder: "asc" },
   });
 
+  // Make sure the demo user has a couple of venues to pick from.
+  for (const [i, name] of VENUES.entries()) {
+    const exists = await prisma.venue.findFirst({ where: { userId: user.id, name } });
+    if (!exists) {
+      await prisma.venue.create({ data: { userId: user.id, name, sortOrder: i } });
+    }
+  }
+  const venues = await prisma.venue.findMany({ where: { userId: user.id } });
+
   const data: {
     userId: string;
     playedAt: Date;
     levelPresetId: string | null;
+    venueId: string | null;
     buyIn: number;
+    rebuys: number;
     cashOut: number;
     rake: number;
+    mood: (typeof MOODS)[number];
     note: string | null;
   }[] = [];
 
@@ -73,14 +95,14 @@ async function main() {
       // Usually a preset level; sometimes a custom buy-in.
       let levelPresetId: string | null = null;
       let buyIn: number;
+      // Occasional rebuys; buyIn is the total put in.
+      const rebuys = chance(0.15) ? pick([1, 1, 2]) : 0;
       if (presets.length && chance(0.8)) {
         const preset = pick(presets);
         levelPresetId = preset.id;
-        buyIn = preset.buyIn;
-        if (chance(0.15)) buyIn *= 2; // occasional rebuy, breaks preset link
-        if (buyIn !== preset.buyIn) levelPresetId = null;
+        buyIn = preset.buyIn * (1 + rebuys);
       } else {
-        buyIn = round100(rand(1000, 8000));
+        buyIn = round100(rand(1000, 8000)) * (1 + rebuys);
       }
 
       const cashOut = round100(buyIn * pick(OUTCOMES));
@@ -90,9 +112,12 @@ async function main() {
         userId: user.id,
         playedAt: new Date(`${day}T00:00:00.000Z`),
         levelPresetId,
+        venueId: venues.length && chance(0.85) ? pick(venues).id : null,
         buyIn,
+        rebuys,
         cashOut,
         rake,
+        mood: pick([...MOODS]),
         note: pick(NOTES),
       });
     }

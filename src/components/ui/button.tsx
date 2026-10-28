@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost";
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
@@ -8,6 +8,7 @@ const VARIANTS: Record<Variant, string> = {
   secondary:
     "border border-border bg-surface text-fg hover:bg-chip",
   ghost: "text-subtle hover:bg-chip",
+  danger: "bg-negative text-white hover:opacity-90 disabled:opacity-60",
 };
 
 export function Button({

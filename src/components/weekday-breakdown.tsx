@@ -17,10 +17,8 @@ export function WeekdayBreakdown({ byWeekday }: { byWeekday: WeekdayStat[] }) {
   const worstIdx = played.reduce((a, b) => (b.net < a.net ? b : a)).weekday;
 
   return (
-    <Card className="flex flex-col gap-3">
-      <span className="text-xs uppercase tracking-wider text-muted">
-        週幾分析
-      </span>
+    <Card className="flex flex-col gap-3 p-4">
+      <h2 className="text-[15px] font-bold">依週幾</h2>
       <div className="grid grid-cols-7 gap-1.5">
         {byWeekday.map((w) => {
           const h = Math.round((Math.abs(w.net) / maxAbs) * 100);

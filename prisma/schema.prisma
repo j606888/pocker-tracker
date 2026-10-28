@@ -12,9 +12,12 @@ model User {
   email        String        @unique
   passwordHash String
   name         String?
+  /// Optional bankroll (TWD) — the report shows it in buy-ins.
+  bankroll     Int?
   createdAt    DateTime      @default(now())
 
   levelPresets LevelPreset[]
+  venues       Venue[]
   sessions     Session[]
 }
 
@@ -55,20 +58,46 @@ model LevelPreset {
   @@index([userId])
 }
 
+/// Per-user quick-entry venue (e.g. "俱樂部 A"), managed like LevelPreset.
+model Venue {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  sortOrder Int       @default(0)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions  Session[]
+
+  @@index([userId])
+}
+
+/// How the player felt during a session (optional, one tap when saving).
+enum Mood {
+  FOCUSED
+  NORMAL
+  TIRED
+  TILT
+}
+
 /// One poker session. Net = cashOut - buyIn - rake (computed at read time).
+/// buyIn is the TOTAL put in, rebuys included; `rebuys` only records how many.
 model Session {
   id            String       @id @default(cuid())
   userId        String
   playedAt      DateTime     @db.Date
   levelPresetId String?
+  venueId       String?
   buyIn         Int
+  rebuys        Int          @default(0)
   cashOut       Int
   rake          Int          @default(0)
+  mood          Mood?
   note          String?
   createdAt     DateTime     @default(now())
 
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   levelPreset   LevelPreset? @relation(fields: [levelPresetId], references: [id], onDelete: SetNull)
+  venue         Venue?       @relation(fields: [venueId], references: [id], onDelete: SetNull)
 
   @@index([userId, playedAt])
 }
