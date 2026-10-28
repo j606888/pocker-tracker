@@ -2,6 +2,7 @@ import { requireUserId, getActingAdminId } from "@/lib/session-user";
 import { getSessionsGroupedByDay } from "@/lib/data/sessions";
 import { normalizeMonth } from "@/lib/date-grid";
 import { MonthCalendar, type DayAgg } from "@/components/month-calendar";
+import { MonthSummary } from "@/components/month-summary";
 import { DayDetail } from "@/components/day-detail";
 
 export default async function CalendarPage({
@@ -23,9 +24,13 @@ export default async function CalendarPage({
 
   const days: Record<string, DayAgg> = {};
   let monthNet = 0;
+  let count = 0;
+  let wins = 0;
   for (const g of groups) {
     days[g.date] = { net: g.dayNet, count: g.sessions.length };
     monthNet += g.dayNet;
+    count += g.sessions.length;
+    wins += g.sessions.filter((s) => s.net > 0).length;
   }
 
   const selectedGroup = selectedDay
@@ -33,13 +38,13 @@ export default async function CalendarPage({
     : undefined;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <MonthCalendar
         month={month}
-        monthNet={monthNet}
         days={days}
         selectedDay={selectedDay}
         today={today}
+        summary={<MonthSummary net={monthNet} count={count} wins={wins} />}
       />
 
       {selectedDay && (

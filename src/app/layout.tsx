@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Fraunces } from "next/font/google";
 import "./globals.css";
 
@@ -22,6 +22,19 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "pocker-tracker",
   description: "記錄你的每一場德州撲克戰績",
+  // Home-screen web app on iOS: full-screen, with this name under the icon.
+  appleWebApp: {
+    capable: true,
+    title: "撲克戰績",
+    statusBarStyle: "default",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f6" },
+    { media: "(prefers-color-scheme: dark)", color: "#111310" },
+  ],
 };
 
 // Runs before paint so a manual theme choice doesn't flash the wrong palette.

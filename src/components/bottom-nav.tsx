@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { QuickAdd } from "@/components/quick-add";
-import { type Preset } from "@/components/session-form";
+import { type Preset, type VenueOption } from "@/components/session-form";
 import { cn } from "@/lib/utils";
 
 function CalendarIcon() {
@@ -60,10 +60,12 @@ function NavLink({
 
 export function BottomNav({
   presets,
+  venues,
   defaultDate,
   readOnly = false,
 }: {
   presets: Preset[];
+  venues: VenueOption[];
   defaultDate: string;
   readOnly?: boolean;
 }) {
@@ -91,7 +93,7 @@ export function BottomNav({
           // Read-only impersonation: no quick-add.
           <div className="w-14 shrink-0" aria-hidden />
         ) : (
-          <QuickAdd presets={presets} defaultDate={defaultDate} />
+          <QuickAdd presets={presets} venues={venues} defaultDate={defaultDate} />
         )}
 
         <div className="flex flex-1 items-center">

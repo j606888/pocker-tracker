@@ -1,9 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requireWritableUserId } from "@/lib/session-user";
 import { sessionSchema } from "@/lib/validations";
+import { dayKey } from "@/lib/data/sessions";
 
 export type SessionFormState =
   | { ok: true; nonce: number }
@@ -19,9 +21,12 @@ export async function saveSession(
   const parsed = sessionSchema.safeParse({
     playedAt: formData.get("playedAt"),
     levelPresetId: formData.get("levelPresetId") ?? undefined,
+    venueId: formData.get("venueId") ?? undefined,
     buyIn: formData.get("buyIn"),
+    rebuys: formData.get("rebuys") || 0,
     cashOut: formData.get("cashOut"),
-    rake: formData.get("rake") ?? 0,
+    rake: formData.get("rake") || 0,
+    mood: formData.get("mood") || undefined,
     note: formData.get("note") ?? undefined,
   });
 
@@ -29,24 +34,34 @@ export async function saveSession(
     return { ok: false, error: parsed.error.issues[0]?.message ?? "輸入有誤" };
   }
 
-  const { playedAt, levelPresetId, buyIn, cashOut, rake, note } = parsed.data;
+  const { playedAt, levelPresetId, venueId, buyIn, rebuys, cashOut, rake, mood, note } =
+    parsed.data;
 
-  // Guard: a supplied preset must belong to this user.
-  let presetId: string | null = levelPresetId;
-  if (presetId) {
-    const owned = await prisma.levelPreset.findFirst({
-      where: { id: presetId, userId },
-      select: { id: true },
-    });
-    if (!owned) presetId = null;
-  }
+  // Guard: a supplied preset / venue must belong to this user.
+  const [ownedPreset, ownedVenue] = await Promise.all([
+    levelPresetId
+      ? prisma.levelPreset.findFirst({
+          where: { id: levelPresetId, userId },
+          select: { id: true },
+        })
+      : null,
+    venueId
+      ? prisma.venue.findFirst({
+          where: { id: venueId, userId },
+          select: { id: true },
+        })
+      : null,
+  ]);
 
   const data = {
     playedAt: new Date(`${playedAt}T00:00:00.000Z`),
-    levelPresetId: presetId,
+    levelPresetId: ownedPreset?.id ?? null,
+    venueId: ownedVenue?.id ?? null,
     buyIn,
+    rebuys,
     cashOut,
     rake,
+    mood,
     note,
   };
 
@@ -68,12 +83,21 @@ export async function saveSession(
   return { ok: true, nonce: Math.random() };
 }
 
+/** Delete from the edit page (after an in-page confirm), then back to that day. */
 export async function deleteSession(formData: FormData): Promise<void> {
   const userId = await requireWritableUserId();
   const id = formData.get("id");
   if (typeof id !== "string" || !id) return;
 
-  // deleteMany with userId scope = safe no-op if not owned.
-  await prisma.session.deleteMany({ where: { id, userId } });
+  const existing = await prisma.session.findFirst({
+    where: { id, userId },
+    select: { playedAt: true },
+  });
+  if (!existing) redirect("/");
+
+  await prisma.session.delete({ where: { id } });
   revalidatePath("/", "layout");
+
+  const day = dayKey(existing.playedAt);
+  redirect(`/?month=${day.slice(0, 7)}&day=${day}`);
 }

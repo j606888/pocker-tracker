@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session-user";
-import { getLevelPresets } from "@/lib/data/sessions";
+import { getLevelPresets, getVenues } from "@/lib/data/sessions";
 import { AppShell } from "@/components/app-shell";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
 
@@ -11,8 +11,9 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const userId = await requireUserId();
-  const [presets, session] = await Promise.all([
+  const [presets, venues, session] = await Promise.all([
     getLevelPresets(userId),
+    getVenues(userId),
     auth(),
   ]);
   const today = new Date().toISOString().slice(0, 10);
@@ -29,6 +30,7 @@ export default async function AppLayout({
   return (
     <AppShell
       presets={presets.map((p) => ({ id: p.id, label: p.label, buyIn: p.buyIn }))}
+      venues={venues.map((v) => ({ id: v.id, name: v.name }))}
       today={today}
       readOnly={readOnly}
       banner={
