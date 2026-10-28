@@ -38,22 +38,21 @@ export default async function CalendarPage({
     : undefined;
 
   return (
-    <div className="flex flex-col gap-4">
-      <MonthCalendar
-        month={month}
-        days={days}
-        selectedDay={selectedDay}
-        today={today}
-        summary={<MonthSummary net={monthNet} count={count} wins={wins} />}
-      />
-
-      {selectedDay && (
-        <DayDetail
-          date={selectedDay}
-          group={selectedGroup}
-          readOnly={readOnly}
-        />
-      )}
-    </div>
+    <MonthCalendar
+      month={month}
+      days={days}
+      selectedDay={selectedDay}
+      today={today}
+      summary={<MonthSummary net={monthNet} count={count} wins={wins} />}
+      aside={
+        selectedDay && (
+          <DayDetail
+            date={selectedDay}
+            group={selectedGroup}
+            readOnly={readOnly}
+          />
+        )
+      }
+    />
   );
 }
