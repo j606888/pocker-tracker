@@ -74,6 +74,8 @@ export function MonthCalendar({
             <Link
               key={c.date}
               href={`/?month=${cellMonth}&day=${c.date}`}
+              // 42 cells would each prefetch a full month render; fetch on click instead.
+              prefetch={false}
               className={cn(
                 "relative flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border text-sm transition",
                 isSelected
