@@ -34,6 +34,8 @@ export type Stats = {
   winRate: number; // 0..1
   totalNet: number;
   avgNet: number;
+  /** Net ÷ total buy-in (rebuys included); null when nothing was bought in. */
+  roi: number | null;
   biggestLoss: number;
   longestLoseStreak: number;
   /** Sample standard deviation of per-session net; null below 2 sessions. */
@@ -84,6 +86,7 @@ export async function getStats(userId: string, range: Range): Promise<Stats> {
   });
 
   let totalNet = 0;
+  let totalBuyIn = 0;
   let wins = 0;
   let biggestLoss = 0;
   let loseStreak = 0;
@@ -111,6 +114,7 @@ export async function getStats(userId: string, range: Range): Promise<Stats> {
     const n = net(r);
     nets.push(n);
     totalNet += n;
+    totalBuyIn += r.buyIn;
     if (n > 0) wins += 1;
     if (n < biggestLoss) biggestLoss = n;
 
@@ -170,6 +174,7 @@ export async function getStats(userId: string, range: Range): Promise<Stats> {
     winRate: count ? wins / count : 0,
     totalNet,
     avgNet,
+    roi: totalBuyIn ? totalNet / totalBuyIn : null,
     biggestLoss,
     longestLoseStreak,
     stdDev,

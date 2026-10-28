@@ -18,32 +18,33 @@ export function MonthSummary({
   const avg = count ? Math.round(net / count) : 0;
 
   return (
-    <section className="flex flex-col gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3.5">
-      <div className="flex items-baseline justify-between">
+    <section className="flex flex-col gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3.5 lg:grid lg:grid-cols-4 lg:gap-4 lg:px-6 lg:py-5">
+      <div className="flex items-baseline justify-between lg:flex-col lg:items-start lg:justify-start lg:gap-2">
         <span className="text-[13px] text-muted">本月淨利</span>
         <span
           className={cn(
-            "tnum font-display text-3xl font-medium leading-none",
+            "tnum font-display text-3xl font-medium leading-none lg:text-[34px]",
             toneText(net)
           )}
         >
           {formatMoney(net, true)}
         </span>
       </div>
-      <div className="grid grid-cols-3 gap-2 border-t border-border pt-2.5">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-muted">場次</span>
-          <span className="tnum text-base font-semibold">{count}</span>
+      {/* Desktop: the three stats sit beside the net, one column each. */}
+      <div className="grid grid-cols-3 gap-2 border-t border-border pt-2.5 lg:col-span-3 lg:gap-4 lg:border-t-0 lg:pt-0">
+        <div className="flex flex-col gap-0.5 lg:gap-2">
+          <span className="text-xs text-muted lg:text-[13px]">場次</span>
+          <span className="tnum text-base font-semibold lg:font-display lg:text-[26px] lg:font-medium lg:leading-tight">{count}</span>
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-muted">勝率</span>
-          <span className="tnum text-base font-semibold">
+        <div className="flex flex-col gap-0.5 lg:gap-2">
+          <span className="text-xs text-muted lg:text-[13px]">勝率</span>
+          <span className="tnum text-base font-semibold lg:font-display lg:text-[26px] lg:font-medium lg:leading-tight">
             {count ? `${winPct}%` : "—"}
           </span>
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-xs text-muted">平均每場</span>
-          <span className={cn("tnum text-base font-semibold", toneText(avg))}>
+        <div className="flex flex-col gap-0.5 lg:gap-2">
+          <span className="text-xs text-muted lg:text-[13px]">平均每場</span>
+          <span className={cn("tnum text-base font-semibold lg:font-display lg:text-[26px] lg:font-medium lg:leading-tight", toneText(avg))}>
             {count ? formatMoney(avg, true) : "—"}
           </span>
         </div>

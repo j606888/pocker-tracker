@@ -53,7 +53,7 @@ export function Dialog({
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
         className={cn(
-          "w-full max-w-lg rounded-t-3xl border border-border bg-bg p-5 outline-none",
+          "w-full max-w-lg rounded-t-3xl border border-border bg-bg p-5 outline-none lg:max-w-[600px] lg:p-7",
           "max-h-[90vh] overflow-y-auto sm:rounded-3xl"
         )}
       >

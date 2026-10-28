@@ -37,7 +37,7 @@ export default async function SettingsPage() {
     : session?.user?.name ?? session?.user?.email ?? "";
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <div className="flex items-baseline gap-3">
         <h1 className="font-display text-xl font-medium">設定</h1>
         <Link href="/" className="ml-auto text-sm text-accent hover:underline">

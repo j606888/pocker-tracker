@@ -25,9 +25,9 @@ export default async function ReportPage({
   const scopeLabel = RANGES.find((r) => r.value === range)!.label;
 
   return (
-    <div className="flex flex-col gap-3.5">
+    <div className="flex flex-col gap-3.5 lg:gap-5">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-[26px] font-medium">報表</h1>
+        <h1 className="font-display text-[26px] font-medium lg:text-[30px]">報表</h1>
         <nav
           aria-label="期間"
           className="flex gap-0.5 rounded-[10px] bg-chip p-[3px]"

@@ -3,35 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { QuickAdd } from "@/components/quick-add";
+import { CalendarIcon, ChartIcon, SettingsIcon } from "@/components/nav-icons";
 import { type Preset, type VenueOption } from "@/components/session-form";
 import { cn } from "@/lib/utils";
-
-function CalendarIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-      <rect x="3" y="4.5" width="18" height="16" rx="2.5" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M3 9h18M8 3v3M16 3v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function ChartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-      <path d="M4 19V5M4 15l4-4 4 3 6-7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function SettingsIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden>
-      <path d="M5 8h10M5 16h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      <circle cx="18" cy="8" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="14" cy="16" r="2.4" stroke="currentColor" strokeWidth="1.6" />
-    </svg>
-  );
-}
 
 function NavLink({
   href,
@@ -72,7 +46,7 @@ export function BottomNav({
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-bg/90 backdrop-blur">
+    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-bg/90 backdrop-blur lg:hidden">
       <div className="mx-auto flex w-full max-w-3xl items-center px-4 pb-[env(safe-area-inset-bottom)]">
         <div className="flex flex-1 items-center">
           <NavLink

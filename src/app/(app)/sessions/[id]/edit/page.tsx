@@ -28,7 +28,7 @@ export default async function EditSessionPage({
   if (!session) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <h1 className="font-display text-xl font-medium">編輯場次</h1>
       <Card>
         <SessionForm

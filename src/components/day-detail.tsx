@@ -29,13 +29,13 @@ export function DayDetail({
   const losses = sessions.filter((s) => s.net < 0).length;
 
   return (
-    <section className="flex flex-col rounded-2xl border border-border bg-surface px-4 pb-1 pt-3.5">
+    <section className="flex flex-col rounded-2xl border border-border bg-surface px-4 pb-1 pt-3.5 lg:px-5 lg:pt-5">
       <div className="flex items-baseline gap-2">
-        <span className="font-display text-[17px] font-medium">{label(date)}</span>
+        <span className="font-display text-[17px] font-medium lg:text-xl">{label(date)}</span>
         {count > 0 && (
           <span
             className={cn(
-              "tnum ml-auto font-display text-xl font-medium",
+              "tnum ml-auto font-display text-xl font-medium lg:text-2xl",
               toneText(net)
             )}
           >
@@ -46,7 +46,15 @@ export function DayDetail({
 
       {count === 0 ? (
         <p className="py-6 text-center text-sm text-muted">
-          {readOnly ? "這天沒有紀錄。" : "這天還沒有紀錄，用下方「＋」記一筆。"}
+          {readOnly ? (
+            "這天沒有紀錄。"
+          ) : (
+            <>
+              這天還沒有紀錄，
+              <span className="lg:hidden">用下方「＋」記一筆。</span>
+              <span className="hidden lg:inline">用左側「記一筆」新增。</span>
+            </>
+          )}
         </p>
       ) : (
         <>
